@@ -114,6 +114,9 @@ pub fn run() {
     let prob = vec![prob1, prob2];
     let acc = vec![acc1, acc2];
 
+    writeln!(stdin, "set style line 1 lc rgb \"#0000FF\"").unwrap();
+    writeln!(stdin, "set style line 2 lc rgb \"#FF00FF\"").unwrap();
+
     writeln!(stdin, "set output \"homework_3_8_probability_distribution_function.png\"").unwrap();
     writeln!(stdin, "set title \"Probability distribution function\"").unwrap();
     writeln!(stdin, "set xlabel \"RT\"").unwrap();
@@ -122,7 +125,7 @@ pub fn run() {
     write!(stdin, " '-' with lines ls 1 title \"RT_{{CO}}\", ").unwrap();
     write!(stdin, " '-' with lines ls 2 title \"RT_{{CO}} (race model)\"").unwrap();
     writeln!(stdin).unwrap();
-    for p in prob {
+    for p in &prob {
         for (x, y) in p {
             writeln!(stdin, "{} {}", x, y).unwrap();
         }
@@ -143,6 +146,42 @@ pub fn run() {
         }
         writeln!(stdin, "e").unwrap();
     }
+
+    // 9.
+    let rt_co = &prob[0];
+    let rt_race = &prob[1];
+
+    // most likely
+    println!();
+    println!("max");
+
+    let mut max_x = 0.0;
+    let mut max_y = f64::MIN;
+
+    for &(x, y) in rt_co.iter() {
+        if y > max_y {
+            max_x = x;
+            max_y = y;
+        }
+    }
+
+    println!("RC_{{CO}}       : {}", max_x);
+
+    let mut max_x = 0.0;
+    let mut max_y = f64::MIN;
+
+    for &(x, y) in rt_race.iter() {
+        if y > max_y {
+            max_x = x;
+            max_y = y;
+        }
+    }
+
+    println!("RC_{{CO}}^{{race}}: {}", max_x);
+
+    // average RT
+    
+    // median RT
 }
 
 fn compute_prob_and_acc(data: &[f64]) -> (Vec::<(f64, f64)>, Vec::<(f64, f64)>) {
