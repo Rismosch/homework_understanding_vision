@@ -1,5 +1,5 @@
-mod rng;
 mod pcg;
+mod rng;
 
 use std::io::Write;
 use std::process::Command;
@@ -8,12 +8,12 @@ use std::process::Stdio;
 use crate::rng::Rng;
 use crate::rng::Seed;
 
-const PATH_C : &str = "vp004rb_C.csv";
-const PATH_O : &str = "vp004rb_O.csv";
-const PATH_CO : &str = "vp004rb_CO.csv";
+const PATH_C: &str = "vp004rb_C.csv";
+const PATH_O: &str = "vp004rb_O.csv";
+const PATH_CO: &str = "vp004rb_CO.csv";
 const PATHS: &[&str] = &[PATH_C, PATH_O, PATH_CO];
 
-const PROBABILITY_WINDOW_SIZE : f64 = 0.05;
+const PROBABILITY_WINDOW_SIZE: f64 = 0.05;
 
 fn cmpf(lhs: &f64, rhs: &f64) -> std::cmp::Ordering {
     if *lhs < *rhs {
@@ -35,7 +35,8 @@ fn main() {
     for path in PATHS.iter() {
         let bytes = std::fs::read(path).expect("no io error");
         let content = String::from_utf8(bytes).expect("valid utf8");
-        let numbers = content.lines()
+        let numbers = content
+            .lines()
             .map(|x| x.parse::<f64>())
             .collect::<Result<Vec<_>, _>>()
             .expect("properly formatted floating point numbers in string");
@@ -61,7 +62,11 @@ fn main() {
     writeln!(stdin, "set style line 3 lc rgb \"#0000FF\"").unwrap();
     writeln!(stdin, "set term png").unwrap();
 
-    writeln!(stdin, "set output \"homework_3_6_probability_distribution_function.png\"").unwrap();
+    writeln!(
+        stdin,
+        "set output \"homework_3_6_probability_distribution_function.png\""
+    )
+    .unwrap();
     writeln!(stdin, "set title \"Probability distribution function\"").unwrap();
     writeln!(stdin, "set xlabel \"RT\"").unwrap();
     writeln!(stdin, "set ylabel \"Probability\"").unwrap();
@@ -77,7 +82,11 @@ fn main() {
         writeln!(stdin, "e").unwrap();
     }
 
-    writeln!(stdin, "set output \"homework_3_6_cumulative_distribution_function.png\"").unwrap();
+    writeln!(
+        stdin,
+        "set output \"homework_3_6_cumulative_distribution_function.png\""
+    )
+    .unwrap();
     writeln!(stdin, "set title \"Cumulative distribution function\"").unwrap();
     writeln!(stdin, "set xlabel \"RT\"").unwrap();
     writeln!(stdin, "set ylabel \"Cumulative probability\"").unwrap();
@@ -119,13 +128,21 @@ fn main() {
     writeln!(stdin, "set style line 1 lc rgb \"#0000FF\"").unwrap();
     writeln!(stdin, "set style line 2 lc rgb \"#FF00FF\"").unwrap();
 
-    writeln!(stdin, "set output \"homework_3_8_probability_distribution_function.png\"").unwrap();
+    writeln!(
+        stdin,
+        "set output \"homework_3_8_probability_distribution_function.png\""
+    )
+    .unwrap();
     writeln!(stdin, "set title \"Probability distribution function\"").unwrap();
     writeln!(stdin, "set xlabel \"RT\"").unwrap();
     writeln!(stdin, "set ylabel \"Probability\"").unwrap();
     write!(stdin, "plot").unwrap();
     write!(stdin, " '-' with lines ls 1 title \"RT_{{CO}}\", ").unwrap();
-    write!(stdin, " '-' with lines ls 2 title \"RT_{{CO}} (race model)\"").unwrap();
+    write!(
+        stdin,
+        " '-' with lines ls 2 title \"RT_{{CO}} (race model)\""
+    )
+    .unwrap();
     writeln!(stdin).unwrap();
     for p in &prob {
         for (x, y) in p {
@@ -134,13 +151,21 @@ fn main() {
         writeln!(stdin, "e").unwrap();
     }
 
-    writeln!(stdin, "set output \"homework_3_8_cumulative_distribution_function.png\"").unwrap();
+    writeln!(
+        stdin,
+        "set output \"homework_3_8_cumulative_distribution_function.png\""
+    )
+    .unwrap();
     writeln!(stdin, "set title \"Cumulative distribution function\"").unwrap();
     writeln!(stdin, "set xlabel \"RT\"").unwrap();
     writeln!(stdin, "set ylabel \"Cumulative probability\"").unwrap();
     write!(stdin, "plot").unwrap();
     write!(stdin, " '-' with lines ls 1 title \"RT_{{CO}}\", ").unwrap();
-    write!(stdin, " '-' with lines ls 2 title \"RT_{{CO}} (race model)\"").unwrap();
+    write!(
+        stdin,
+        " '-' with lines ls 2 title \"RT_{{CO}} (race model)\""
+    )
+    .unwrap();
     writeln!(stdin).unwrap();
     for p in acc {
         for (x, y) in p {
@@ -182,11 +207,11 @@ fn main() {
     println!("RC_{{CO}}^{{race}}: {}", max_x);
 
     // average RT
-    
+
     // median RT
 }
 
-fn compute_prob_and_acc(data: &[f64]) -> (Vec::<(f64, f64)>, Vec::<(f64, f64)>) {
+fn compute_prob_and_acc(data: &[f64]) -> (Vec<(f64, f64)>, Vec<(f64, f64)>) {
     let mut min = 0.0;
     loop {
         let candidate = min + PROBABILITY_WINDOW_SIZE;

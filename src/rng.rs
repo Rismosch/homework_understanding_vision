@@ -153,11 +153,7 @@ impl Rng {
 
         let r = (max - min) * self.next_f32() + min;
 
-        if r > max {
-            max
-        } else {
-            r
-        }
+        if r > max { max } else { r }
     }
 
     /// min and max are inclusive
@@ -173,11 +169,7 @@ impl Rng {
 
         let r = (((max - min) as f32) * self.next_f32()) as i32 + min;
 
-        if r > max {
-            max
-        } else {
-            r
-        }
+        if r > max { max } else { r }
     }
 
     pub fn next_in<'a, T>(&mut self, slice: &'a [T]) -> &'a T {
