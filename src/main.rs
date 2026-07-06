@@ -207,8 +207,37 @@ fn main() {
     println!("RC_{{CO}}^{{race}}: {}", max_x);
 
     // average RT
+    println!();
+    println!("average");
+
+    let mut sum = 0.0;
+    for &x in data_rt_co.iter() {
+        sum += x;
+    }
+    let average = sum / data_rt_co.len() as f64;
+    println!("RC_{{CO}}       : {}", average);
+
+    let mut sum = 0.0;
+    for &x in data_rt_co_race.iter() {
+        sum += x;
+    }
+    let average = sum / data_rt_co_race.len() as f64;
+    println!("RC_{{CO}}^{{race}}: {}", average);
+
 
     // median RT
+    println!();
+    println!("median");
+
+    let mut sorted = data_rt_co.clone();
+    sorted.sort_by(cmpf);
+    let median = sorted[sorted.len() / 2];
+    println!("RC_{{CO}}       : {}", median);
+
+    let mut sorted = data_rt_co_race.clone();
+    sorted.sort_by(cmpf);
+    let median = sorted[sorted.len() / 2];
+    println!("RC_{{CO}}^{{race}}: {}", median);
 }
 
 fn compute_prob_and_acc(data: &[f64]) -> (Vec<(f64, f64)>, Vec<(f64, f64)>) {
