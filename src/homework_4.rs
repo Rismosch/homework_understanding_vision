@@ -1,0 +1,91 @@
+use std::io::Write;
+use std::process::{Command, Stdio};
+
+const DATA_PATH: &str = "ConeSensitivity_Function_ForExercise2024.csv";
+
+#[derive(Debug)]
+struct Row {
+    wavelength: usize,
+    s_cone_sensitivity: f64,
+    m_cone_sensitivity: f64,
+    l_cone_sensitivity: f64,
+}
+
+pub fn run() {
+    // read file
+    let file_content = std::fs::read_to_string(DATA_PATH).unwrap();
+
+    let mut lines = file_content.lines();
+    let _header = lines.next().expect("to have at least 1 line in the input");
+
+    let rows = lines
+        .map(|x|{
+            let mut splits = x.split(';');
+            let wavelength = splits
+                .next()
+                .expect("column 0 to exist")
+                .parse()
+                .expect("wavelength to have correct format");
+            let s_cone_sensitivity = splits
+                .next()
+                .expect("column 1 to exist")
+                .parse()
+                .expect("s_cone_sensitivity to have correct format");
+            let m_cone_sensitivity = splits
+                .next()
+                .expect("column 2 to exist")
+                .parse()
+                .expect("m_cone_sensitivity to have correct format");
+            let l_cone_sensitivity = splits
+                .next()
+                .expect("column 3 to exist")
+                .parse()
+                .expect("l_cone_sensitivity to have correct format");
+
+            Row {
+                wavelength,
+                s_cone_sensitivity,
+                m_cone_sensitivity,
+                l_cone_sensitivity,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    // open gnuplot
+    let mut gnuplot = Command::new("gnuplot")
+        .stdin(Stdio::piped())
+        .spawn()
+        .expect("gnuplot to spawn");
+    let stdin = gnuplot.stdin.as_mut().expect("stdin to exist");
+
+    writeln!(stdin, "set style line 1 lc rgb \"#0000FF\"").unwrap();
+    writeln!(stdin, "set style line 2 lc rgb \"#00FF00\"").unwrap();
+    writeln!(stdin, "set style line 3 lc rgb \"#FF0000\"").unwrap();
+    writeln!(stdin, "set terminal pngcairo enhanced").unwrap();
+
+    writeln!(stdin,"set output \"homework_4_A_cone_sensitivity_spectrum.png\"").unwrap();
+    writeln!(stdin, "set title \"Cone sensitivity spectrum \u{1D453}_a({{/Symbol l}})\"").unwrap();
+    writeln!(stdin, "set xlabel \"Wavelength {{/Symbol l}} (nm)\"").unwrap();
+    writeln!(stdin, "set ylabel \"Cone sensitivity\"").unwrap();
+    writeln!(stdin, "set logscale y").unwrap();
+    writeln!(stdin, "set format y \"10^{{%L}}\"").unwrap();
+    write!(stdin, "plot").unwrap();
+    write!(stdin, " '-' with lines ls 1 title \"S\", ").unwrap();
+    write!(stdin, " '-' with lines ls 2 title \"M\", ").unwrap();
+    write!(stdin, " '-' with lines ls 3 title \"L\"").unwrap();
+    writeln!(stdin).unwrap();
+
+    for row in rows.iter() {
+        writeln!(stdin, "{} {}", row.wavelength, row.s_cone_sensitivity).unwrap();
+    }
+    writeln!(stdin, "e").unwrap();
+    for row in rows.iter() {
+        writeln!(stdin, "{} {}", row.wavelength, row.m_cone_sensitivity).unwrap();
+    }
+    writeln!(stdin, "e").unwrap();
+    for row in rows.iter() {
+        writeln!(stdin, "{} {}", row.wavelength, row.l_cone_sensitivity).unwrap();
+    }
+    writeln!(stdin, "e").unwrap();
+
+}
