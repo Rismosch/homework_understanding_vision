@@ -1,14 +1,46 @@
 use std::io::Write;
 use std::process::{Command, Stdio};
+use std::task::Wake;
+use std::u128;
 
 const DATA_PATH: &str = "ConeSensitivity_Function_ForExercise2024.csv";
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Row {
     wavelength: usize,
     s_cone_sensitivity: f64,
     m_cone_sensitivity: f64,
     l_cone_sensitivity: f64,
+}
+
+enum Cone {
+    S,
+    M,
+    L,
+}
+
+struct S {
+    wavelength: usize,
+    I: usize,
+}
+
+impl Row {
+    fn sensitivity(self, a: Cone) -> f64 {
+        match a {
+            Cone::S => self.s_cone_sensitivity,
+            Cone::M => self.m_cone_sensitivity,
+            Cone::L => self.l_cone_sensitivity,
+        }
+    }
+}
+
+impl From<(usize, usize)> for S {
+    fn from(value: (usize, usize)) -> Self {
+        Self {
+            wavelength: value.0,
+            I: value.1,
+        }
+    }
 }
 
 pub fn run() {
@@ -63,8 +95,9 @@ pub fn run() {
     writeln!(stdin, "set style line 3 lc rgb \"#FF0000\"").unwrap();
     writeln!(stdin, "set terminal pngcairo enhanced").unwrap();
 
+    // A
     writeln!(stdin,"set output \"homework_4_A_cone_sensitivity_spectrum.png\"").unwrap();
-    writeln!(stdin, "set title \"Cone sensitivity spectrum \u{1D453}_a({{/Symbol l}})\"").unwrap();
+    writeln!(stdin, "set title \"Cone sensitivity spectrum \u{1D453}_\u{1D44E}({{/Symbol l}})\"").unwrap();
     writeln!(stdin, "set xlabel \"Wavelength {{/Symbol l}} (nm)\"").unwrap();
     writeln!(stdin, "set ylabel \"Cone sensitivity\"").unwrap();
     writeln!(stdin, "set logscale y").unwrap();
@@ -88,4 +121,36 @@ pub fn run() {
     }
     writeln!(stdin, "e").unwrap();
 
+
+    // B
+    poisson_distribution(
+        &rows, 
+        Cone::S,
+        (100, 570).into(),
+        20,
+    );
+}
+
+fn mean_r_a(rows: &[Row], a: Cone, s: S) -> Option<f64> {
+    for row in rows {
+        if row.wavelength == s.wavelength {
+            return Some(s.I as f64 * row.sensitivity(a));
+        }
+    }
+
+    return None;
+}
+
+fn poisson_distribution(rows: &[Row], a: Cone, s: S, r_a: usize) {
+    let mean = mean_r_a(rows, a, s).unwrap();
+
+    let mut factorial = r_a as u128;
+    for x in 1..r_a as u128 {
+        factorial *= x;
+    }
+
+    let numerator = mean.powf(r_a as f64);
+    let denominator = 1;
+
+    todo!();
 }
