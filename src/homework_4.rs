@@ -1,7 +1,5 @@
-use std::io::Write;
+use std::io::{stdin, Write};
 use std::process::{Command, Stdio};
-use std::task::Wake;
-use std::u128;
 
 const DATA_PATH: &str = "ConeSensitivity_Function_ForExercise2024.csv";
 
@@ -13,12 +11,14 @@ struct Row {
     l_cone_sensitivity: f64,
 }
 
+#[derive(Debug, Clone, Copy)]
 enum Cone {
     S,
     M,
     L,
 }
 
+#[derive(Debug, Clone, Copy)]
 struct S {
     wavelength: usize,
     I: usize,
@@ -123,12 +123,70 @@ pub fn run() {
 
 
     // B
-    poisson_distribution(
-        &rows, 
-        Cone::S,
-        (100, 570).into(),
-        20,
-    );
+    let cones = [Cone::S, Cone::M, Cone::L];
+
+    //let x_values = (1usize..256usize).collect::<Vec<_>>();
+    let x_values = (0usize..=15usize).collect::<Vec<_>>();
+    let mut cone_values = Vec::with_capacity(cones.len());
+
+    //// sanity check
+    //// https://commons.wikimedia.org/wiki/File:Poisson_pmf.svg
+    //for lambda in [1, 4, 10] {
+    //    let mut y_values = Vec::with_capacity(x_values.len());
+    //    for &x in x_values.iter() {
+    //        let y = poisson_distribution(lambda as f64, x);
+    //        y_values.push(y);
+    //    }
+    //    cone_values.push(y_values);
+    //}
+
+    let mut lambdas = Vec::with_capacity(cones.len());
+
+    for &cone in cones.iter() {
+        let mut y_values = Vec::with_capacity(x_values.len());
+
+        let s = (570, 1).into();
+        let lambda = mean_r_a(&rows, cone, s)
+            .expect(&format!("mean r_a for wavelength {} to exist", s.wavelength));
+        lambdas.push(lambda);
+
+        for &x in x_values.iter() {
+            let y = poisson_distribution(lambda, x);
+            y_values.push(y);
+        }
+
+        cone_values.push(y_values);
+    }
+
+    writeln!(stdin,"set output \"homework_4_B_cone_absorption_likelihood.png\"").unwrap();
+    writeln!(stdin, "set title \"Cone absorption likelihood P(r_a | S = ({{/Symbol l}}, I))\"").unwrap();
+    writeln!(stdin, "set xlabel \"Cone absorption r\"").unwrap();
+    writeln!(stdin, "set ylabel \"Likelihood\"").unwrap();
+    writeln!(stdin, "unset logscale y").unwrap();
+    writeln!(stdin, "set format y").unwrap();
+
+    for (i, &lambda) in lambdas.iter().enumerate() {
+        let n = i + 1;
+        let mean = lambda;
+        writeln!(stdin, "set arrow {} from {}, graph 0 to {}, graph 1 nohead ls {}", n, mean, mean, n).unwrap();
+
+        writeln!(stdin, "set label {} \"mean\" at {}, graph 1 offset 0,-1 tc ls {}", n, mean, n).unwrap();
+    }
+
+    write!(stdin, "plot").unwrap();
+    write!(stdin, " '-' w lp ls 1 pt 2 title \"S\", ").unwrap();
+    write!(stdin, " '-' w lp ls 2 pt 2 title \"M\", ").unwrap();
+    write!(stdin, " '-' w lp ls 3 pt 2 title \"L\"").unwrap();
+    writeln!(stdin).unwrap();
+
+    for y_values in cone_values.iter() {
+        for (i, &y) in y_values.iter().enumerate() {
+            let x = x_values[i];
+            writeln!(stdin, "{} {}", x, y).unwrap();
+        }
+
+        writeln!(stdin, "e").unwrap();
+    }
 }
 
 fn mean_r_a(rows: &[Row], a: Cone, s: S) -> Option<f64> {
@@ -141,16 +199,12 @@ fn mean_r_a(rows: &[Row], a: Cone, s: S) -> Option<f64> {
     return None;
 }
 
-fn poisson_distribution(rows: &[Row], a: Cone, s: S, r_a: usize) {
-    let mean = mean_r_a(rows, a, s).unwrap();
+fn poisson_distribution(lambda: f64, k: usize) -> f64 {
+    let mut fract = lambda.powf(k as f64) * f64::exp(-lambda);
 
-    let mut factorial = r_a as u128;
-    for x in 1..r_a as u128 {
-        factorial *= x;
+    for x in 2..=k {
+        fract /= x as f64;
     }
 
-    let numerator = mean.powf(r_a as f64);
-    let denominator = 1;
-
-    todo!();
+    fract
 }
