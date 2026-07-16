@@ -97,9 +97,9 @@ pub fn run() {
 
     // A
     writeln!(stdin,"set output \"homework_4_A_cone_sensitivity_spectrum.png\"").unwrap();
-    writeln!(stdin, "set title \"Cone sensitivity spectrum \u{1D453}_\u{1D44E}({{/Symbol l}})\"").unwrap();
+    writeln!(stdin, "set title \"Cone sensitivity spectrum\"").unwrap();
     writeln!(stdin, "set xlabel \"Wavelength {{/Symbol l}} (nm)\"").unwrap();
-    writeln!(stdin, "set ylabel \"Cone sensitivity\"").unwrap();
+    writeln!(stdin, "set ylabel \"Cone sensitivity f_a({{/Symbol l}})\"").unwrap();
     writeln!(stdin, "set logscale y").unwrap();
     writeln!(stdin, "set format y \"10^{{%L}}\"").unwrap();
     write!(stdin, "plot").unwrap();
@@ -129,19 +129,7 @@ pub fn run() {
     let x_values = (0usize..=15usize).collect::<Vec<_>>();
     let mut cone_values = Vec::with_capacity(cones.len());
 
-    //// sanity check
-    //// https://commons.wikimedia.org/wiki/File:Poisson_pmf.svg
-    //for lambda in [1, 4, 10] {
-    //    let mut y_values = Vec::with_capacity(x_values.len());
-    //    for &x in x_values.iter() {
-    //        let y = poisson_distribution(lambda as f64, x);
-    //        y_values.push(y);
-    //    }
-    //    cone_values.push(y_values);
-    //}
-
     let mut lambdas = Vec::with_capacity(cones.len());
-
     for &cone in cones.iter() {
         let mut y_values = Vec::with_capacity(x_values.len());
 
@@ -159,9 +147,9 @@ pub fn run() {
     }
 
     writeln!(stdin,"set output \"homework_4_B_cone_absorption_likelihood.png\"").unwrap();
-    writeln!(stdin, "set title \"Cone absorption likelihood P(r_a | S = ({{/Symbol l}}, I))\"").unwrap();
-    writeln!(stdin, "set xlabel \"Cone absorption r\"").unwrap();
-    writeln!(stdin, "set ylabel \"Likelihood\"").unwrap();
+    writeln!(stdin, "set title \"Cone absorption likelihood\"").unwrap();
+    writeln!(stdin, "set xlabel \"Cone absorption r_a\"").unwrap();
+    writeln!(stdin, "set ylabel \"Likelihood P(r_a | S = ({{/Symbol l}}, I))\"").unwrap();
     writeln!(stdin, "unset logscale y").unwrap();
     writeln!(stdin, "set format y").unwrap();
 
