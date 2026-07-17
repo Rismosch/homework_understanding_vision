@@ -1,4 +1,5 @@
-use std::io::{stdin, Write};
+use std::io::Write;
+use std::ops::Range;
 use std::process::{ChildStdin, Command, Stdio};
 use std::usize;
 
@@ -21,10 +22,21 @@ enum Cone {
     L,
 }
 
-#[derive(Debug, Clone, Copy)]
+impl Cone {
+    fn to_index(self) -> usize {
+        match self {
+            Cone::S => 0,
+            Cone::M => 1,
+            Cone::L => 2,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 struct S {
     wavelength: usize,
     I: usize,
+    x_window: Range<usize>,
 }
 
 impl Row {
@@ -37,11 +49,20 @@ impl Row {
     }
 }
 
-fn reset_gnuplot(stdin: &mut ChildStdin) {
+const RED: &str =       "#FF0000";
+const GREEN: &str =     "#00FF00";
+const BLUE: &str =      "#0000FF";
+const CYAN: &str =      "#00FF00";
+const MAGENTA: &str =   "#FF00FF";
+const YELLOW: &str =    "#FFFF00";
+
+fn reset_gnuplot(stdin: &mut ChildStdin, colors: impl AsRef<[&'static str]>) {
     writeln!(stdin, "reset").unwrap();
-    writeln!(stdin, "set style line 1 lc rgb \"#0000FF\"").unwrap();
-    writeln!(stdin, "set style line 2 lc rgb \"#00FF00\"").unwrap();
-    writeln!(stdin, "set style line 3 lc rgb \"#FF0000\"").unwrap();
+
+    for (i, &color) in colors.as_ref().iter().enumerate() {
+        writeln!(stdin, "set style line {} lc rgb \"{}\"", i + 1, color).unwrap();
+    }
+
     writeln!(stdin, "set terminal pngcairo enhanced").unwrap();
 }
 
@@ -97,7 +118,7 @@ pub fn run() {
 
 
     // A
-    reset_gnuplot(stdin);
+    reset_gnuplot(stdin, [RED, GREEN, BLUE]);
     writeln!(stdin,"set output \"homework_4_A_cone_sensitivity_spectrum.png\"").unwrap();
     writeln!(stdin, "set title \"Cone sensitivity spectrum\"").unwrap();
     writeln!(stdin, "set xlabel \"Wavelength {{/Symbol l}} (nm)\"").unwrap();
@@ -128,22 +149,23 @@ pub fn run() {
     let scenes: &[S] = &[
         S{
             wavelength: 570,
-            I: 1,
+            I: 100,
+            x_window: 0..800,
         },
         S{
-            wavelength: 450,
-            I: 1,
+            wavelength: 470,
+            I: 100,
+            x_window: 0..100,
         },
     ];
 
-    for &s in scenes.iter() {
-        let S { wavelength, I } = s;
+    for s in scenes.iter() {
+        let S { wavelength, I, x_window } = s.clone();
 
         // B
-        reset_gnuplot(stdin);
         let cones = [Cone::S, Cone::M, Cone::L];
 
-        let x_values = (0usize..=15usize).collect::<Vec<_>>();
+        let x_values = x_window.clone().collect::<Vec<_>>();
         let mut cone_values = Vec::with_capacity(cones.len());
 
         let mut lambdas = Vec::with_capacity(cones.len());
@@ -162,11 +184,12 @@ pub fn run() {
             cone_values.push(y_values);
         }
 
+        reset_gnuplot(stdin, [RED, GREEN, BLUE]);
         writeln!(stdin,"set output \"homework_4_B_cone_absorption_likelihood_w={}_I={}.png\"", wavelength, I).unwrap();
-        writeln!(stdin, "set title \"Cone absorption likelihood\"").unwrap();
+        writeln!(stdin, "set title \"Cone absorption likelihood ({{/Symbol l}} = {})\"", wavelength).unwrap();
         writeln!(stdin, "set xlabel \"Cone absorption r_a\"").unwrap();
         writeln!(stdin, "set ylabel \"Likelihood P(r_a | S = ({{/Symbol l}}, I))\"").unwrap();
-        writeln!(stdin, "unset logscale y").unwrap();
+        //writeln!(stdin, "set logscale y").unwrap();
         writeln!(stdin, "set format y").unwrap();
 
         for (i, &lambda) in lambdas.iter().enumerate() {
@@ -178,9 +201,12 @@ pub fn run() {
         }
 
         write!(stdin, "plot").unwrap();
-        write!(stdin, " '-' w lp ls 1 pt 2 title \"S\", ").unwrap();
-        write!(stdin, " '-' w lp ls 2 pt 2 title \"M\", ").unwrap();
-        write!(stdin, " '-' w lp ls 3 pt 2 title \"L\"").unwrap();
+        //write!(stdin, " '-' w lp ls 1 pt 2 title \"S\", ").unwrap();
+        //write!(stdin, " '-' w lp ls 2 pt 2 title \"M\", ").unwrap();
+        //write!(stdin, " '-' w lp ls 3 pt 2 title \"L\"").unwrap();
+        write!(stdin, " '-' w l ls 1 title \"S\", ").unwrap();
+        write!(stdin, " '-' w l ls 2 title \"M\", ").unwrap();
+        write!(stdin, " '-' w l ls 3 title \"L\"").unwrap();
         writeln!(stdin).unwrap();
 
         for y_values in cone_values.iter() {
@@ -193,66 +219,59 @@ pub fn run() {
         }
 
         // C
-        let mut cummulative_distributions = Vec::with_capacity(cone_values.iter().len());
-        for y_values in cone_values.iter() {
-            let mut distribution = Vec::with_capacity(y_values.len());
-            let mut sum = 0.0;
-            for &y in y_values {
-                sum += y;
-                distribution.push(sum);
+        let mut cummulations = Vec::with_capacity(cone_values.len());
+        for i in 0..cummulations.capacity() {
+            let y_values = &cone_values[i];
+            let mut cummulation = Vec::with_capacity(y_values.len());
+            for &y in y_values.iter() {
+                let y = if y.is_infinite() {
+                    0.0
+                } else {
+                    y
+                };
+
+                let prev = cummulation.last().copied().unwrap_or(0.0);
+                cummulation.push(prev + y);
             }
-            cummulative_distributions.push(distribution)
+            cummulations.push(cummulation);
         }
 
-        let mut sample_distribution = |d: &[f64]| {
-            let t = rng.next_f32() as f64;
-            let mut l = 0 as isize;
-            let mut r = (d.len() - 1) as isize;
-            while l < r + 1 {
-                let m = l + (r - l) / 2;
-                if d[m as usize] < t {
-                    l = m + 1;
-                } else if d[m as usize] > t {
-                    r = m - 1;
+        let mut sample_cummulation = |c: &[f64]| {
+            let target = rng.next_f32() as f64;
+            let mut index = None;
+            for (i, &y) in c.iter().enumerate() {
+                if y < target {
+                    index = Some(i);
                 } else {
-                    //return m as f64;
+                    break;
                 }
             }
 
-            let ol = usize::min(l as usize, d.len() - 1);
-            let or = usize::min(r as usize, d.len() - 1);
-            let l = usize::min(ol, or);
-            let r = usize::max(ol, or);
-
-            let low = d[l];
-            let high = d[r];
-            let diff = high - low;
-            let t_ = (t - low) / diff;
-            if t_ < 0.0 {
-                l as f64
-            } else {
-                (l + (r - l) / 2) as f64 + t_
-            }
+            index
         };
 
         let sample_count = 1000;
         let mut samples = Vec::with_capacity(sample_count);
         for _ in 0..samples.capacity() {
-            let x = sample_distribution(&cummulative_distributions[0]);
-            let y = sample_distribution(&cummulative_distributions[1]);
-            let z = sample_distribution(&cummulative_distributions[2]);
-            samples.push((x, y, z));
+            let s = sample_cummulation(&cummulations[0]);
+            let m = sample_cummulation(&cummulations[1]);
+            let l = sample_cummulation(&cummulations[2]);
+            let (Some(s), Some(m), Some(l)) = (s, m, l) else {
+                continue;
+            };
+
+            samples.push((s, m, l));
         }
 
-        reset_gnuplot(stdin);
+        reset_gnuplot(stdin, &[BLUE, MAGENTA]);
         writeln!(stdin,"set output \"homework_4_C_cone_responses_w={}_I={}.png\"", wavelength, I).unwrap();
         writeln!(stdin, "set title \"Cone Responses\"").unwrap();
         writeln!(stdin, "set xlabel \"r_S\"").unwrap();
         writeln!(stdin, "set ylabel \"r_M\"").unwrap();
         writeln!(stdin, "set zlabel \"r_L\"").unwrap();
-        writeln!(stdin, "set xrange [0:1]").unwrap();
+        //writeln!(stdin, "set xrange [0:1]").unwrap();
 
-        write!(stdin, "splot '-' using 1:2:3 with points title \"Response\"").unwrap();
+        write!(stdin, "splot '-' u 1:2:3 w p ls 1 t \"{{/Symbol l}} = {}\"", wavelength).unwrap();
         writeln!(stdin).unwrap();
         for &(s, m, l) in samples.iter() {
             writeln!(stdin, "{} {} {}", s, m, l).unwrap();
@@ -261,7 +280,7 @@ pub fn run() {
     }
 }
 
-fn mean_r_a(rows: &[Row], a: Cone, s: S) -> Option<f64> {
+fn mean_r_a(rows: &[Row], a: Cone, s: &S) -> Option<f64> {
     for row in rows {
         if row.wavelength == s.wavelength {
             return Some(s.I as f64 * row.sensitivity(a));
@@ -271,12 +290,35 @@ fn mean_r_a(rows: &[Row], a: Cone, s: S) -> Option<f64> {
     return None;
 }
 
-fn poisson_distribution(lambda: f64, k: usize) -> f64 {
-    let mut fract = lambda.powf(k as f64) * f64::exp(-lambda);
+//fn poisson_distribution(lambda: f64, k: usize) -> f64 {
+//    let nominator = lambda.powf(k as f64) * f64::exp(-lambda);
+//
+//    let mut result = nominator;
+//    for x in 2..=k {
+//        result /= x as f64;
+//    }
+//
+//    result as f64
+//}
 
-    for x in 2..=k {
-        fract /= x as f64;
+fn poisson_distribution(lambda: f64, k: usize) -> f64 {
+    let mut factorial = f64::ln(k as f64);
+    for i in 2..k {
+        factorial += f64::ln(i as f64);
     }
 
-    fract
+    let ln_distribution = (k as f64) * f64::ln(lambda) - factorial - lambda;
+    f64::exp(ln_distribution)
 }
+
+//fn poisson_distribution(lambda: f64, k: usize) -> f64 {
+//    //let nominator = lambda.powf(k as f64) * f64::exp(-lambda);
+//    let nominator = (lambda as f128).powf(k as f128) / f128::exp(lambda as f128);
+//
+//    let mut result = nominator;
+//    for x in 2..=k {
+//        result /= x as f128;
+//    }
+//
+//    result as f64
+//}
