@@ -2,6 +2,7 @@ use std::io::Write;
 use std::process::Command;
 use std::process::Stdio;
 
+use crate::exit_gnuplot;
 use crate::rng::Rng;
 use crate::rng::Seed;
 
@@ -221,7 +222,6 @@ pub fn run() {
     let average = sum / data_rt_co_race.len() as f64;
     println!("RC_{{CO}}^{{race}}: {}", average);
 
-
     // median RT
     println!();
     println!("median");
@@ -235,6 +235,8 @@ pub fn run() {
     sorted.sort_by(cmpf);
     let median = sorted[sorted.len() / 2];
     println!("RC_{{CO}}^{{race}}: {}", median);
+
+    exit_gnuplot(gnuplot);
 }
 
 fn compute_prob_and_acc(data: &[f64]) -> (Vec<(f64, f64)>, Vec<(f64, f64)>) {

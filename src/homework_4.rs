@@ -2,8 +2,8 @@ use core::f64;
 use std::io::Write;
 use std::ops::Range;
 use std::process::{ChildStdin, Command, Stdio};
-use std::{isize, usize};
 
+use crate::exit_gnuplot;
 use crate::rng::{Rng, Seed};
 
 const DATA_PATH: &str = "ConeSensitivity_Function_ForExercise2024.csv";
@@ -43,11 +43,11 @@ impl Row {
     }
 }
 
-const RED: &str =       "#FF0000";
-const GREEN: &str =     "#00FF00";
-const BLUE: &str =      "#0000FF";
-const MAGENTA: &str =   "#FF00FF";
-const BLACK: &str =     "#000000";
+const RED: &str = "#FF0000";
+const GREEN: &str = "#00FF00";
+const BLUE: &str = "#0000FF";
+const MAGENTA: &str = "#FF00FF";
+const BLACK: &str = "#000000";
 
 pub fn run() {
     // read file
@@ -57,7 +57,7 @@ pub fn run() {
     let _header = lines.next().expect("to have at least 1 line in the input");
 
     let rows = lines
-        .map(|x|{
+        .map(|x| {
             let mut splits = x.split(';');
             let wavelength = splits
                 .next()
@@ -90,7 +90,8 @@ pub fn run() {
         .collect::<Vec<_>>();
 
     // init rng
-    let seed = Seed(130481809037589250852820291570893062093);
+    //let seed = Seed(130481809037589250852820291570893062093);
+    let seed = Seed::new();
     println!("seed: {:?}", seed);
     let mut rng = Rng::new(seed);
 
@@ -103,7 +104,11 @@ pub fn run() {
 
     // A
     reset_gnuplot(stdin, [BLUE, GREEN, RED]);
-    writeln!(stdin,"set output \"homework_4_A_cone_sensitivity_spectrum.png\"").unwrap();
+    writeln!(
+        stdin,
+        "set output \"homework_4_A_cone_sensitivity_spectrum.png\""
+    )
+    .unwrap();
     writeln!(stdin, "set title \"Cone sensitivity spectrum\"").unwrap();
     writeln!(stdin, "set xlabel \"Wavelength {{/Symbol l}} (nm)\"").unwrap();
     writeln!(stdin, "set ylabel \"Cone sensitivity f_a({{/Symbol l}})\"").unwrap();
@@ -130,13 +135,13 @@ pub fn run() {
 
     // I
     let scenes: &[S] = &[
-        S{
+        S {
             wavelength: 570,
             delta: 1,
             I: 100,
             x_window: 0..800,
         },
-        S{
+        S {
             wavelength: 470,
             delta: 10,
             I: 100,
@@ -147,32 +152,66 @@ pub fn run() {
     let mut already_logged = false;
 
     for s in scenes.iter() {
-        let S { wavelength, delta, I, x_window } = s.clone();
+        let S {
+            wavelength,
+            delta,
+            I,
+            x_window,
+        } = s.clone();
 
         // B + D
         let x_values = x_window.clone().collect::<Vec<_>>();
-        let cone_values = build_cone_poisson_distributions(&x_values, &rows, &s, false);
-        let cone_delta_values = build_cone_poisson_distributions(&x_values, &rows, &s, true);
+        let cone_values = build_cone_poisson_distributions(&x_values, &rows, s, false);
+        let cone_delta_values = build_cone_poisson_distributions(&x_values, &rows, s, true);
 
         let mut mean_responses = Vec::with_capacity(CONES.len());
         for &cone in CONES.iter() {
-            let mean_response = mean_r_a(&rows, cone, s.wavelength, s.I)
-                .expect(&format!("mean r_a for wavelength {} to exist", s.wavelength));
+            let mean_response = mean_r_a(&rows, cone, s.wavelength, s.I).expect(&format!(
+                "mean r_a for wavelength {} to exist",
+                s.wavelength
+            ));
             mean_responses.push(mean_response);
         }
 
         reset_gnuplot(stdin, [BLUE, GREEN, RED]);
-        writeln!(stdin,"set output \"homework_4_B_cone_absorption_likelihood_w={}_I={}.png\"", wavelength, I).unwrap();
-        writeln!(stdin, "set title \"Cone absorption likelihood ({{/Symbol l}} = {})\"", wavelength).unwrap();
+        writeln!(
+            stdin,
+            "set output \"homework_4_B_cone_absorption_likelihood_w={}_I={}.png\"",
+            wavelength, I
+        )
+        .unwrap();
+        writeln!(
+            stdin,
+            "set title \"Cone absorption likelihood ({{/Symbol l}} = {})\"",
+            wavelength
+        )
+        .unwrap();
         writeln!(stdin, "set xlabel \"Cone absorption r_a\"").unwrap();
-        writeln!(stdin, "set ylabel \"Likelihood P(r_a | S = ({{/Symbol l}}, I))\"").unwrap();
+        writeln!(
+            stdin,
+            "set ylabel \"Likelihood P(r_a | S = ({{/Symbol l}}, I))\""
+        )
+        .unwrap();
 
         for (i, &mean_response) in mean_responses.iter().enumerate() {
             let n = i + 1;
             let m = mean_response;
-            writeln!(stdin, "set arrow {} from {}, graph 0 to {}, graph 1 nohead ls {}", n, m, m, n).unwrap();
+            writeln!(
+                stdin,
+                "set arrow {} from {}, graph 0 to {}, graph 1 nohead ls {}",
+                n, m, m, n
+            )
+            .unwrap();
 
-            writeln!(stdin, "set label {} \"mean\" at {}, graph 1 offset 1,-{} tc ls {}", n, m, i + 1, n).unwrap();
+            writeln!(
+                stdin,
+                "set label {} \"mean\" at {}, graph 1 offset 1,-{} tc ls {}",
+                n,
+                m,
+                i + 1,
+                n
+            )
+            .unwrap();
         }
 
         write!(stdin, "plot").unwrap();
@@ -198,11 +237,7 @@ pub fn run() {
             let y_values = &cone_values[i];
             let mut cummulation = Vec::with_capacity(y_values.len());
             for &y in y_values.iter() {
-                let y = if y.is_infinite() {
-                    0.0
-                } else {
-                    y
-                };
+                let y = if y.is_infinite() { 0.0 } else { y };
 
                 let prev = cummulation.last().copied().unwrap_or(0.0);
                 cummulation.push(prev + y);
@@ -212,11 +247,7 @@ pub fn run() {
             let y_delta_values = &cone_delta_values[i];
             let mut cummulation_delta = Vec::with_capacity(y_values.len());
             for &y in y_delta_values.iter() {
-                let y = if y.is_infinite() {
-                    0.0
-                } else {
-                    y
-                };
+                let y = if y.is_infinite() { 0.0 } else { y };
 
                 let prev = cummulation_delta.last().copied().unwrap_or(0.0);
                 cummulation_delta.push(prev + y);
@@ -263,16 +294,31 @@ pub fn run() {
             samples_1.push((s, m, l));
         }
 
-        reset_gnuplot(stdin, &[BLUE, MAGENTA]);
-        writeln!(stdin,"set output \"homework_4_C_cone_responses_w={}_I={}.png\"", wavelength, I).unwrap();
+        reset_gnuplot(stdin, [BLUE, MAGENTA]);
+        writeln!(
+            stdin,
+            "set output \"homework_4_C_cone_responses_w={}_I={}.png\"",
+            wavelength, I
+        )
+        .unwrap();
         writeln!(stdin, "set title \"Cone Responses\"").unwrap();
         writeln!(stdin, "set xlabel \"r_S\"").unwrap();
         writeln!(stdin, "set ylabel \"r_M\"").unwrap();
         writeln!(stdin, "set zlabel \"r_L\"").unwrap();
 
         write!(stdin, "splot").unwrap();
-        write!(stdin, " '-' u 1:2:3 w p ls 1 t \"{{/Symbol l}} = {}\",", wavelength).unwrap();
-        write!(stdin, " '-' u 1:2:3 w p ls 2 t \"{{/Symbol l}} = {}\"", wavelength + delta).unwrap();
+        write!(
+            stdin,
+            " '-' u 1:2:3 w p ls 1 t \"{{/Symbol l}} = {}\",",
+            wavelength
+        )
+        .unwrap();
+        write!(
+            stdin,
+            " '-' u 1:2:3 w p ls 2 t \"{{/Symbol l}} = {}\"",
+            wavelength + delta
+        )
+        .unwrap();
         writeln!(stdin).unwrap();
         for &(s, m, l) in samples_0.iter() {
             writeln!(stdin, "{} {} {}", s, m, l).unwrap();
@@ -288,7 +334,7 @@ pub fn run() {
             println!();
             println!("E. + F.");
             println!(
-"delta lambda depends on the wavelength. at 470nm, delta lambda = 10 roughly
+                "delta lambda depends on the wavelength. at 470nm, delta lambda = 10 roughly
 gives a 30% overlap, incerasing it to 15 or 20 drastically reduced the overlap.
 at 570nm, because the s cones are responding so lowly, overlap is difficult to 
 achieve, even with a delta lambda of just 1"
@@ -314,7 +360,7 @@ achieve, even with a delta lambda of just 1"
 
             let mut buckets = lookup.into_iter();
             let (mut max_response, mut max_count) = buckets.next().expect("at least one sample");
-            while let Some((response, count)) = buckets.next() {
+            for (response, count) in buckets {
                 if count > max_count {
                     max_response = response;
                     max_count = count;
@@ -367,17 +413,19 @@ achieve, even with a delta lambda of just 1"
             let decoding_error = min_wavelength as isize - s.wavelength as isize;
             println!(
                 "min error: {} for cone: {:?} is wavelength: {}. decoding error: {}",
-                min_error,
-                cone,
-                min_wavelength,
-                decoding_error,
+                min_error, cone, min_wavelength, decoding_error,
             );
 
             all_error_values.push((error_values, min_wavelength));
         }
 
         reset_gnuplot(stdin, [BLUE, GREEN, RED, BLACK]);
-        writeln!(stdin,"set output \"homework_4_G_decoding_error_w={}_I={}.png\"", wavelength, I).unwrap();
+        writeln!(
+            stdin,
+            "set output \"homework_4_G_decoding_error_w={}_I={}.png\"",
+            wavelength, I
+        )
+        .unwrap();
         writeln!(stdin, "set title \"Decoding error\"").unwrap();
         writeln!(stdin, "set xlabel \"Wavelength {{/Symbol l}} (nm)\"").unwrap();
         writeln!(stdin, "set ylabel \"Response error r'_a - r_a\"").unwrap();
@@ -385,14 +433,34 @@ achieve, even with a delta lambda of just 1"
         for (i, (_, decoding_error)) in all_error_values.iter().enumerate() {
             let n = i + 1;
             let d = decoding_error;
-            writeln!(stdin, "set arrow {} from {}, graph 0 to {}, graph 1 nohead ls {}", n, d, d, n).unwrap();
-            writeln!(stdin, "set label {} \"{{/Symbol l}}'\" at {}, graph 1 offset 1,-{} tc ls {}", n, d, n, n).unwrap();
+            writeln!(
+                stdin,
+                "set arrow {} from {}, graph 0 to {}, graph 1 nohead ls {}",
+                n, d, d, n
+            )
+            .unwrap();
+            writeln!(
+                stdin,
+                "set label {} \"{{/Symbol l}}'\" at {}, graph 1 offset 1,-{} tc ls {}",
+                n, d, n, n
+            )
+            .unwrap();
         }
 
         let n = 4;
         let d = s.wavelength;
-        writeln!(stdin, "set arrow {} from {}, graph 0 to {}, graph 1 nohead ls {}", n, d, d, n).unwrap();
-        writeln!(stdin, "set label {} \"{{/Symbol l}}\" at {}, graph 1 offset 1,-{} tc ls {}", n, d, n, n).unwrap();
+        writeln!(
+            stdin,
+            "set arrow {} from {}, graph 0 to {}, graph 1 nohead ls {}",
+            n, d, d, n
+        )
+        .unwrap();
+        writeln!(
+            stdin,
+            "set label {} \"{{/Symbol l}}\" at {}, graph 1 offset 1,-{} tc ls {}",
+            n, d, n, n
+        )
+        .unwrap();
 
         write!(stdin, "plot").unwrap();
         write!(stdin, " '-' w l ls 1 title \"S\", ").unwrap();
@@ -408,6 +476,8 @@ achieve, even with a delta lambda of just 1"
             writeln!(stdin, "e").unwrap();
         }
     }
+
+    exit_gnuplot(gnuplot);
 }
 
 fn reset_gnuplot(stdin: &mut ChildStdin, colors: impl AsRef<[&'static str]>) {
@@ -425,15 +495,17 @@ fn build_cone_poisson_distributions(
     rows: &[Row],
     s: &S,
     apply_delta: bool,
-) -> Vec<Vec<f64>>{
+) -> Vec<Vec<f64>> {
     let mut cone_values = Vec::with_capacity(CONES.len());
 
     let mut lambdas = Vec::with_capacity(CONES.len());
     for &cone in CONES.iter() {
         let mut y_values = Vec::with_capacity(x_values.len());
 
-        let mut lambda = mean_r_a(&rows, cone, s.wavelength, s.I)
-            .expect(&format!("mean r_a for wavelength {} to exist", s.wavelength));
+        let mut lambda = mean_r_a(rows, cone, s.wavelength, s.I).expect(&format!(
+            "mean r_a for wavelength {} to exist",
+            s.wavelength
+        ));
         lambdas.push(lambda);
 
         if apply_delta {
@@ -467,7 +539,7 @@ fn mean_r_a(rows: &[Row], a: Cone, wavelength: usize, I: usize) -> Option<f64> {
         }
     }
 
-    return None;
+    None
 }
 
 fn poisson_distribution(lambda: f64, k: usize) -> f64 {
