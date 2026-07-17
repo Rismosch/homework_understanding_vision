@@ -427,7 +427,7 @@ achieve, even with a delta lambda of just 1"
         )
         .unwrap();
         writeln!(stdin, "set title \"Decoding error\"").unwrap();
-        writeln!(stdin, "set xlabel \"Wavelength {{/Symbol l}} (nm)\"").unwrap();
+        writeln!(stdin, "set xlabel \"Wavelength {{/Symbol l}}' (nm)\"").unwrap();
         writeln!(stdin, "set ylabel \"Response error r'_a - r_a\"").unwrap();
 
         for (i, (_, decoding_error)) in all_error_values.iter().enumerate() {
